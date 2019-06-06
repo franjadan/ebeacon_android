@@ -26,17 +26,10 @@ import org.altbeacon.beacon.Identifier;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 
 public class MainActivity extends Activity implements BeaconConsumer, RangeNotifier {
-
-    protected final String TAG = MainActivity.this.getClass().getSimpleName();;
-    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
-    private static final int REQUEST_ENABLE_BLUETOOTH = 1;
-    private static final long DEFAULT_SCAN_PERIOD_MS = 10000;
-    private static final String REGION_ID = "MyRegion";
 
     // Para interactuar con los beacons desde una actividad
     private BeaconManager mBeaconManager;
@@ -62,10 +55,10 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
         mBeaconManager.getBeaconParsers().add(new BeaconParser().
                 setBeaconLayout(BeaconParser.EDDYSTONE_UID_LAYOUT));
 
-        Identifier myBeaconNamespaceId = Identifier.parse("0x00000000000000000000");
-        Identifier myBeaconInstanceId = Identifier.parse("0x000000000000");
+        Identifier myBeaconNamespaceId = Identifier.parse(Utils.NAMESPACE_ID);
+        Identifier myBeaconInstanceId = Identifier.parse(Utils.INSTANCE_ID);
 
-        mRegion = new Region(REGION_ID, myBeaconNamespaceId, myBeaconInstanceId, null);
+        mRegion = new Region(Utils.REGION_ID, myBeaconNamespaceId, myBeaconInstanceId, null);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
@@ -111,7 +104,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
 
                 // Pedir al usuario que active el bluetooth
                 Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BLUETOOTH);
+                startActivityForResult(enableBtIntent, Utils.REQUEST_ENABLE_BLUETOOTH);
             }
         }
     }
@@ -119,7 +112,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-        if (requestCode == REQUEST_ENABLE_BLUETOOTH) {
+        if (requestCode == Utils.REQUEST_ENABLE_BLUETOOTH) {
 
             // Usuario ha activado el bluetooth
             if (resultCode == RESULT_OK) {
@@ -142,7 +135,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
     private void startDetectingBeacons() {
 
         // Fijar un periodo de escaneo
-        mBeaconManager.setForegroundScanPeriod(DEFAULT_SCAN_PERIOD_MS);
+        mBeaconManager.setForegroundScanPeriod(Utils.DEFAULT_SCAN_PERIOD_MS);
 
         // Enlazar al servicio de beacons. Obtiene un callback cuando esté listo para ser usado
         mBeaconManager.bind(this);
@@ -160,7 +153,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
             showToastMessage(getString(R.string.start_looking_for_beacons));
 
         } catch (RemoteException e) {
-            Log.d(TAG, "Se ha producido una excepción al empezar a buscar beacons " + e.getMessage());
+            Log.d(Utils.TAG, "Se ha producido una excepción al empezar a buscar beacons " + e.getMessage());
         }
 
         mBeaconManager.addRangeNotifier(this);
@@ -200,7 +193,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
             mBeaconManager.stopMonitoringBeaconsInRegion(mRegion);
             showToastMessage(getString(R.string.stop_looking_for_beacons));
         } catch (RemoteException e) {
-            Log.d(TAG, "Se ha producido una excepción al parar de buscar beacons " + e.getMessage());
+            Log.d(Utils.TAG, "Se ha producido una excepción al parar de buscar beacons " + e.getMessage());
         }
 
         mBeaconManager.removeAllRangeNotifiers();
@@ -223,7 +216,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
             @RequiresApi(api = Build.VERSION_CODES.M)
             public void onDismiss(DialogInterface dialog) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                        PERMISSION_REQUEST_COARSE_LOCATION);
+                        Utils.PERMISSION_REQUEST_COARSE_LOCATION);
             }
         });
         builder.show();
@@ -233,7 +226,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case PERMISSION_REQUEST_COARSE_LOCATION: {
+            case Utils.PERMISSION_REQUEST_COARSE_LOCATION: {
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     prepareDetection();
                 } else {
@@ -274,7 +267,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
             gpsLocationEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
         } catch (Exception ex) {
-            Log.d(TAG, "Excepción al obtener información de localización");
+            Log.d(Utils.TAG, "Excepción al obtener información de localización");
         }
 
         return networkLocationEnabled || gpsLocationEnabled;
