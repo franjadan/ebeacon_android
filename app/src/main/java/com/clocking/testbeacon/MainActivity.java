@@ -46,19 +46,25 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //botón de fichar
         btnClockIn = findViewById(R.id.clockin_btn);
         btnClockIn.setEnabled(false);
 
+        //instancio el manejador de beacons
         mBeaconManager = BeaconManager.getInstanceForApplication(this);
 
         // Fijar un protocolo beacon, Eddystone en este caso
         mBeaconManager.getBeaconParsers().add(new BeaconParser().
                 setBeaconLayout(BeaconParser.EDDYSTONE_UID_LAYOUT));
 
+        //Añado un rango de búsqueda, es decir, que buscará ebeacon que coincidan con estos identificadores
+
         Identifier myBeaconNamespaceId = Identifier.parse(Utils.NAMESPACE_ID);
         Identifier myBeaconInstanceId = Identifier.parse(Utils.INSTANCE_ID);
 
         mRegion = new Region(Utils.REGION_ID, myBeaconNamespaceId, myBeaconInstanceId, null);
+
+        //Compruebo si hay permisos de localización
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
@@ -119,7 +125,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
 
                 startDetectingBeacons();
 
-            } else if (resultCode == RESULT_CANCELED) { // User refuses to enable bluetooth
+            } else if (resultCode == RESULT_CANCELED) { // Usuario rechaza activar el bluetooth
 
                 showToastMessage(getString(R.string.no_bluetooth_msg));
             }
@@ -146,8 +152,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
     public void onBeaconServiceConnect() {
 
         try {
-            // Empezar a buscar los beacons que encajen con el el objeto Región pasado, incluyendo
-            // actualizaciones en la distancia estimada
+            // Empezar a buscar los beacons que encajen con la region pasada
             mBeaconManager.startRangingBeaconsInRegion(mRegion);
 
             showToastMessage(getString(R.string.start_looking_for_beacons));
@@ -187,6 +192,10 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
         }
     }
 
+    /**
+     * Detener la búsqueda de beacons
+     */
+
     private void stopDetectingBeacons() {
 
         try {
@@ -222,14 +231,23 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
         builder.show();
     }
 
+    /**
+     * Obtiene el resultado de pedir los permisos al usuario
+     * @param requestCode
+     * @param permissions
+     * @param grantResults
+     */
+
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
         switch (requestCode) {
+            //Si ha proporcionado permisos de localizacion
             case Utils.PERMISSION_REQUEST_COARSE_LOCATION: {
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     prepareDetection();
                 } else {
+                    //Si no los ha aceptado
                     final AlertDialog.Builder builder = new AlertDialog.Builder(this);
                     builder.setTitle(R.string.funcionality_limited);
                     builder.setMessage(getString(R.string.location_not_granted) +
