@@ -14,6 +14,7 @@ import android.os.RemoteException;
 import android.provider.Settings;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
@@ -29,7 +30,7 @@ import org.altbeacon.beacon.Region;
 import java.util.Collection;
 
 
-public class MainActivity extends Activity implements BeaconConsumer, RangeNotifier {
+public class MainActivity extends AppCompatActivity implements BeaconConsumer, RangeNotifier {
 
     // Para interactuar con los beacons desde una actividad
     private BeaconManager mBeaconManager;
@@ -41,13 +42,13 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
 
     Button btnClockIn;
 
+    //Cada vez que entramos en la actividad
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+    protected void onResume() {
+        super.onResume();
 
         //botón de fichar
-        btnClockIn = findViewById(R.id.clockin_btn);
         btnClockIn.setEnabled(false);
 
         //instancio el manejador de beacons
@@ -56,13 +57,6 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
         // Fijar un protocolo beacon, Eddystone en este caso
         mBeaconManager.getBeaconParsers().add(new BeaconParser().
                 setBeaconLayout(BeaconParser.EDDYSTONE_UID_LAYOUT));
-
-        //Añado un rango de búsqueda, es decir, que buscará ebeacon que coincidan con estos identificadores
-
-        Identifier myBeaconNamespaceId = Identifier.parse(Utils.NAMESPACE_ID);
-        Identifier myBeaconInstanceId = Identifier.parse(Utils.INSTANCE_ID);
-
-        mRegion = new Region(Utils.REGION_ID, myBeaconNamespaceId, myBeaconInstanceId, null);
 
         //Compruebo si hay permisos de localización
 
@@ -104,7 +98,7 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
 
             } else if (mBluetoothAdapter.isEnabled()) {
 
-                startDetectingBeacons();
+                mBeaconManager.bind(this);
 
             } else {
 
@@ -123,7 +117,8 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
             // Usuario ha activado el bluetooth
             if (resultCode == RESULT_OK) {
 
-                startDetectingBeacons();
+                //Bindeo la aplicacion al manager
+                mBeaconManager.bind(this);
 
             } else if (resultCode == RESULT_CANCELED) { // Usuario rechaza activar el bluetooth
 
@@ -135,81 +130,47 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
     }
 
 
-    /**
-     * Empezar a detectar los beacons, ocultando o mostrando los botones correspondientes
-     */
-    private void startDetectingBeacons() {
-
-        // Fijar un periodo de escaneo
-        mBeaconManager.setForegroundScanPeriod(Utils.DEFAULT_SCAN_PERIOD_MS);
-
-        // Enlazar al servicio de beacons. Obtiene un callback cuando esté listo para ser usado
-        mBeaconManager.bind(this);
-
-    }
-
     @Override
     public void onBeaconServiceConnect() {
+        //Al conectarse al servicio de beacon le establezco la region por la que buscar
+
+        Identifier myBeaconNamespaceId = Identifier.parse(Utils.NAMESPACE_ID);
+        Identifier myBeaconInstanceId = Identifier.parse(Utils.INSTANCE_ID);
+
+        Region mRegion = new Region(Utils.REGION_ID, myBeaconNamespaceId, myBeaconInstanceId, null);
 
         try {
-            // Empezar a buscar los beacons que encajen con la region pasada
+            //Empieza la búsqueda
             mBeaconManager.startRangingBeaconsInRegion(mRegion);
-
-            showToastMessage(getString(R.string.start_looking_for_beacons));
-
         } catch (RemoteException e) {
-            Log.d(Utils.TAG, "Se ha producido una excepción al empezar a buscar beacons " + e.getMessage());
+            e.printStackTrace();
         }
 
+        //Implemento el notificador de la búsqueda del beacon
         mBeaconManager.addRangeNotifier(this);
     }
 
 
-    /**
-     * Método llamado cada DEFAULT_SCAN_PERIOD_MS segundos con los beacons detectados durante ese
-     * periodo
-     */
+
     @Override
     public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
 
-        if (beacons.size() == 0) {
-            showToastMessage(getString(R.string.no_beacons_detected));
-            stopDetectingBeacons();
+        //Si lo encuentra para la búsqueda y desactiva el bluetooth
 
-            if (mBluetoothAdapter.isEnabled()) {
+        if(beacons.size() > 0){
+            Toast.makeText(this, "Encontrado", Toast.LENGTH_LONG).show();
+            mBeaconManager.removeAllRangeNotifiers();
+
+            btnClockIn.setEnabled(true);
+
+            if(mBluetoothAdapter.isEnabled()){
                 mBluetoothAdapter.disable();
             }
 
         }else{
-
-            btnClockIn.setEnabled(true);
-
-            stopDetectingBeacons();
-
-            if (mBluetoothAdapter.isEnabled()) {
-                mBluetoothAdapter.disable();
-            }
+            //Si no lo encuentra sigue buscando (AQUÍ PODEMOS HACER QUE CUANDO PASEN X SEGUNDOS PARE LA BÚSQUEDA)
+            Toast.makeText(this, "No Encontrado", Toast.LENGTH_LONG).show();
         }
-    }
-
-    /**
-     * Detener la búsqueda de beacons
-     */
-
-    private void stopDetectingBeacons() {
-
-        try {
-            mBeaconManager.stopMonitoringBeaconsInRegion(mRegion);
-            showToastMessage(getString(R.string.stop_looking_for_beacons));
-        } catch (RemoteException e) {
-            Log.d(Utils.TAG, "Se ha producido una excepción al parar de buscar beacons " + e.getMessage());
-        }
-
-        mBeaconManager.removeAllRangeNotifiers();
-
-        // Desenlazar servicio de beacons
-        mBeaconManager.unbind(this);
-
     }
 
     /**
@@ -321,10 +282,33 @@ public class MainActivity extends Activity implements BeaconConsumer, RangeNotif
         toast.show();
     }
 
+    //Cuando paso la activity a segundo plano
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        mBeaconManager.unbind(this);
+        if(mBluetoothAdapter.isEnabled()){
+            mBluetoothAdapter.disable();
+        }
+    }
+
+    //Cuando cierro la app
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mBeaconManager.removeAllRangeNotifiers();
         mBeaconManager.unbind(this);
+        if(mBluetoothAdapter.isEnabled()){
+            mBluetoothAdapter.disable();
+        }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        btnClockIn = findViewById(R.id.clockin_btn);
+
     }
 }
