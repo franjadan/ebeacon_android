@@ -161,7 +161,12 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, R
             Toast.makeText(this, "Encontrado", Toast.LENGTH_LONG).show();
             mBeaconManager.removeAllRangeNotifiers();
 
-            btnClockIn.setEnabled(true);
+            this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    btnClockIn.setEnabled(true);
+                }
+            });
 
             if(mBluetoothAdapter.isEnabled()){
                 mBluetoothAdapter.disable();
